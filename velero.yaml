@@ -1,0 +1,51 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: velero
+  namespace: flux-system
+spec:
+  interval: 5m0s
+  url: https://vmware-tanzu.github.io/helm-charts
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: velero
+  namespace: flux-system
+spec:
+  chart:
+    spec:
+      chart: velero
+      reconcileStrategy: ChartVersion
+      sourceRef:
+        kind: HelmRepository
+        name: velero
+        namespace: flux-system
+      version: 5.0.2
+  interval: 1m0s
+  install:
+    createNamespace: true
+  targetNamespace: velero
+  values:
+    configuration:
+      backupStorageLocation:
+      - bucket: acp-test-eks-b-velero-backup
+        provider: aws
+      volumeSnapshotLocation:
+      - config:
+          region: eu-west-2
+        provider: aws
+    initContainers:
+    - name: velero-plugin-for-aws
+      image: velero/velero-plugin-for-aws:v1.7.1
+      volumeMounts:
+      - mountPath: /target
+        name: plugins
+    credentials:
+      useSecret: false
+    serviceAccount:
+      server:
+        annotations:
+          eks.amazonaws.com/role-arn: "arn:aws:iam::670930646103:role/acp-test-eks-b-velero"
+        create: true
+        name: velero-server-sa
